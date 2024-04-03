@@ -396,6 +396,8 @@ def process_database_records_in_chunks(chunk_size=100):
         else:
             print(f"Error processing records. Status code: {response.status_code}")
 
+
+########## Get user in zendesk ###########
 class ShowUser(APIView):
     def get(self, request, *args, **kwargs):
 
@@ -630,6 +632,7 @@ def process_database_records_in_chunks(chunk_size=10):
             print(f"Error processing records. Status code: {response.status_code}")
 
 
+######### For save ticket ids and claim ids in excel sheet ##############
 def ShowYokoTicket(request):
     url = "https://yokohama-atg.zendesk.com/api/v2/tickets"
     username = "sreevidya@godigitalcx.com"
@@ -684,25 +687,3 @@ def fake_user(request):
     except Exception as e:
         print(f"Error importing data: {str(e)}")
         return HttpResponse(str(e), "false")
-# def fake_user(request):
-#     try:
-#         file_path = "myapp/customer_files/fakeuser.csv"
-#         df = pd.read_csv(file_path)
-#         print("DataFrame:", df)
-
-#         fake_users = []
-#         for index, row in df.iterrows():
-#             fake_user = Fakeuser(
-#                 name=row['name'],
-#                 email=row['email'],
-#                 # Add other fields here as needed
-#             )
-#             fake_users.append(fake_user)
-
-#         # Bulk create the fake users
-#         Fakeuser.objects.bulk_create(fake_users)
-
-#         return HttpResponse("Saved CSV data successfully")
-#     except Exception as e:
-#         print(f"Error importing data: {str(e)}")
-#         return HttpResponse(str(e), "false")
