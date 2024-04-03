@@ -17,269 +17,23 @@ import numpy as np
 import re   
 # Create your views here.
 
-# Zendesk credentials
-ZENDESK_API_USERNAME = "nikhil@codenomad.net"
-ZENDESK_API_PASSWORD = "Codenomad@2020"
-SUBDOMAIN = "z3nhd"
 
-# User create in bulk
-def UserCreate(request):
-    return process_csv('myapp/customer_files/User-data.csv', chunk_size=2)
 
-def user_structure(row):
-    return {
-            "email": row["email"],
-            "name": row["name"],
-            "role": row["role"],
-            "phone": row["phone"],
-            "tags": row["tags"],
-            "brand":row["brand"]
-            }
-            
-            
-ZENDESK_URL = f"https://{SUBDOMAIN}.zendesk.com/api/v2/users/create_many"
-# BASE_URL = f"https://{SUBDOMAIN}.zendesk.com/api/v2/users/create_many"
 
-def create_user_api(user_list):
-    payload = json.dumps({"users": user_list})
-    headers = {
-        "Content-Type": "application/json",
-    }
-    response = requests.request(
-        "POST",
-        ZENDESK_URL,
-        auth=(ZENDESK_API_USERNAME, ZENDESK_API_PASSWORD),
-        headers=headers,
-        data=payload
-    )
-    return response
 
-def process_csv(file_path, chunk_size=2):
+######## Save customer in excel file in database ########
+
+def save_customer_ticket_excel(request):
     try:
-        df = pd.read_csv(file_path)
-        total_records = len(df)
-        for start_idx in range(0, total_records, chunk_size):
-            end_idx = start_idx + chunk_size
-            chunk = df[start_idx:end_idx]
-            user_list = []
-            for _, row in chunk.iterrows():
-                user_list.append(user_structure(row))
-            response = create_user_api(user_list)
-            print("ress",response)
-            print(f"Processed {len(user_list)} records. Response: {response.status_code}")
-        return JsonResponse({"message":response.json()})
-    except Exception as e:
-        return JsonResponse({"error": str(e)})
+        file_path = "/home/oem/Downloads/testyoko.csv"
+        # Specify dtype for multiple columns
+        df = pd.read_csv(file_path, dtype={'OUR RECOMMENDATION': str, 'REMAINING TREAD DEPTH (%)': str})
     
-
-# Create ticket in bulk
-def Create_ticket(request):
-    return process_csv_in_chunks_ticket('myapp/files/test.csv', chunk_size=100)
-
-API_URL = f"https://{SUBDOMAIN}.zendesk.com/api/v2/imports/tickets/create_many"
-
-def create_ticket_structure(row):
-    return {
-            "comments": [
-                {
-                "value": row['body']
-                }
-            ],
-            "subject": row['subject'],
-            "tags": row['tags'],
-            "priority": str(row['priority']),
-            "type": row['type'],
-            "status": row['status']
-            }
-
-def ticket_api(ticket_list):
-    payload = json.dumps({"tickets": ticket_list})
-    headers = {
-        "Content-Type": "application/json",
-    }
-    response = requests.post(
-        API_URL,
-        auth=(ZENDESK_API_USERNAME, ZENDESK_API_PASSWORD),
-        headers=headers,
-        data=payload
-    )
-    return response
-
-def process_csv_in_chunks_ticket(file_path, chunk_size=100):
-    try:
-        df = pd.read_csv(file_path)
-        total_records = len(df)
-        for start_idx in range(0, total_records, chunk_size):
-            end_idx = start_idx + chunk_size
-            chunk = df[start_idx:end_idx]
-            ticket_list = [create_ticket_structure(row) for _, row in chunk.iterrows()]
-            response = ticket_api(ticket_list)
-           
-           # Get response data
-            job_status = response.json().get('job_status', {})
-            job_type = job_status.get('job_type')
-            url = job_status.get('url')
-            status = job_status.get('status')
-            # Save the response to the database
-            Tickets.objects.create(
-                job_type=job_type,
-                url=url,
-                status =status,
-                complete_json = job_status
-            )
-
-            print(f"Processed {len(ticket_list)} records. Response: {response.status_code}")
-        return JsonResponse({"message":response.json()})
-    except Exception as e:
-        return JsonResponse({"error": str(e)})
-
-################## Get tickets ######################
-
-class ShowTicket(APIView):
-    def get(self,request, *args, **kwargs):
-        url = f"https://{SUBDOMAIN}.zendesk.com/api/v2/tickets"
-        headers = {
-            "Content-Type": "application/json",
-        }
-        params = {
-            'per_page':100,
-            'page': 1,   
-            'sort_by': 'created_at',
-            'sort_order': 'desc'
-        }
-        response = requests.request(
-            "GET",
-            url,
-            auth=(ZENDESK_API_USERNAME,ZENDESK_API_PASSWORD),
-            headers=headers,
-            params=params
-        )
-        response_data = response.json()
-        sorted_users = sorted(response_data['tickets'], key=lambda x: x['created_at'], reverse=True)
-        return Response({"data":sorted_users})
-    
-
-######## Single attach with comment ########
-
-class attachFile(APIView):
-    def post(self, request, *args, **kwargs):
-        # Assuming the CSV file has a single column 'file_path'
-        csv_file_path = 'myapp/files/files_list.csv'
-
-        # Read file paths from CSV
-        with open(csv_file_path, 'r') as csvfile:
-            reader = csv.DictReader(csvfile)
-            file_paths = [row['file'] for row in reader]
-            print("fffffff",file_paths)
-
-        # Zendesk credentials
-        auth = ('harjot@codenomad.net', 'harjot@123')
-
-        # Upload files
-        upload_tokens = []
-        print("uuuuuu",upload_tokens)
-        for file_path in file_paths:
-            print("111",file_path)
-            with open(file_path, 'rb') as f:
-                url = 'https://codenomad8499.zendesk.com/api/v2/uploads.json'
-                params = {'filename': file_path}
-                headers = {'Content-Type': 'pdf/png'}
-                response = requests.post(url, params=params,headers=headers ,data=f, auth=auth).json()
-                # print("rrrrrrrr",response)
-                upload_tokens.append(response['upload']['token'])
-
-        # Attach files to the ticket
-        url = 'https://codenomad8499.zendesk.com/api/v2/tickets'
-        payload = {
-            'ticket': {
-                'subject': 'Multiple File Upload',
-                'comment': {
-                    'body': 'Test multiple file upload',
-                    'uploads': upload_tokens
-                },
-                "tags": "test",
-                "type": "task"
-            }
-        }
-        response = requests.post(url, json=payload, auth=auth)
-        return Response({"data": response.json()})
-    
-
-##### Create ticket with attachment in bulk #######
-def Create_ticket_with_attachment(request):
-    return process_csv_in_chunks('myapp/files/files_list.csv', chunk_size=10)
-
-ZENDESK_API_URL = f"https://{SUBDOMAIN}.zendesk.com/api/v2/tickets/create_many"
-
-def create_ticket_attach_structure(row, upload_token):
-    return {
-        "comment": {
-            "body": row['body'],
-            "uploads": upload_token
-        },
-        "subject": row['subject'],
-        "priority": str(row['priority']),
-        "tags": row['tags'],
-        "type": row['type'],
-        "status": row['status']
-    }
-
-def attach_tickets(ticket_list):
-    payload = json.dumps({"tickets": ticket_list})
-    headers = {"Content-Type": "application/json"}
-    
-    response = requests.post(
-        ZENDESK_API_URL,
-        auth=(ZENDESK_API_USERNAME,ZENDESK_API_PASSWORD),
-        headers=headers,
-        data=payload
-    )
-    return response
-
-def upload_file(file_path):
-    with open(file_path, 'rb') as f:
-        url = f'https://{SUBDOMAIN}.zendesk.com/api/v2/uploads.json'
-        params = {'filename': file_path}
-        headers = {'Content-Type': 'image/pdf'}
-        response = requests.post(url, params=params, headers=headers, data=f, auth=(ZENDESK_API_USERNAME,ZENDESK_API_PASSWORD)).json()
-        # print("resss",response)
-        return response['upload']['token']
-
-def process_csv_in_chunks(file_path, chunk_size=10):
-    try:
-        df = pd.read_csv(file_path)
-        total_records = len(df)
-        
-        for start_idx in range(0, total_records, chunk_size):
-            end_idx = start_idx + chunk_size
-            chunk = df[start_idx:end_idx]
-            
-            upload_tokens = [upload_file(row['file']) for _, row in chunk.iterrows()]
-            print("uppp",upload_tokens)
-            ticket_list = []
-            for (_, row), upload_token in zip(chunk.iterrows(), upload_tokens):
-                ticket = create_ticket_attach_structure(row, upload_token)
-                ticket_list.append(ticket)
-            print("gggggg",ticket_list)
-            response = attach_tickets(ticket_list)
-            print(f"Processed {len(ticket_list)} records. Response: {response.status_code}")
-        
-        return JsonResponse({"message": response.json()})
-    
-    except Exception as e:
-        return JsonResponse({"error": str(e)})
-
-######## Save excel file in database ########
-
-def save_excel_data(request):
-    try:
-        file_path = "/home/oem/Downloads/yokohamaTest-ticket.ods"
-        df = pd.read_excel(file_path)
-        # print("DataFrame:", df)
         for index, row in df.iterrows():
             legacy_claim_no = "legacy_" + str(row['CLAIM NO'])
             unique_data_id = "uid_" + str(row['Unique ID'])
             claim_no_with_migration = "data_migration" + ", " + legacy_claim_no + ", " + unique_data_id
+
             CustomerTicket.objects.create(
                 unique_id=row['Unique ID'],
                 date=row['Date'],
@@ -310,10 +64,7 @@ def save_excel_data(request):
         print(f"Error importing data: {str(e)}")
         return HttpResponse(e,"false")
 
-# def data_del(request):
-#     us_del =Plant.objects.all().delete()
-#     print("dddd",us_del)
-#     return HttpResponse("delete all data")
+
     
 ############ Yokohama User create in bulk  #############
 class CustomerCreate(APIView):
@@ -525,217 +276,19 @@ def process_excel_in_chunks_ticket(file_path, chunk_size=2):
 
 
 
-# class CustomerData(APIView):
-#     def post(self, request, *args, **kwargs):
-#         return process_excel_in_chunks_ticket('myapp/customer_files/Test_ticket.xlsx', chunk_size=2)
-
-
-# def create_ticket_structure_excel(row):
-#     return {
-#             "comments": [
-#                 {
-#                 "body": row['DEFECT']
-#                 }
-#             ],
-#             "tags": row['CLAIM NO'],
-#             "status": 'new',
-#             "requester_id":"23066867293841",
-#             # "assignee_id":"17459473072145",
-#             "custom_fields": [{"id": 17459369077521, "value": row['DEFECT']},  #Description
-#                               {"id": 21115540894737, "value": row['CAT No.']},  #Cat Number
-#                               {"id": 21115518082321, "value": row['Type']},     # Type (TT/TL)
-#                               {"id": 21115488705297, "value": row['Country']},  # Country
-#                               {"id": 21256551170961, "value": row['Customer Name']}, #Name
-#                               {"id": 21145754951697, "value": row['OUR RECOMMENDATION']},#Recommendation for this request
-#                               {"id": 21145491038481, "value": row['No of tyres']}, #No of tyres
-#                               {"id": 21115597806225, "value": row['Date of Invoice']}, #Invoice Date
-#                               {"id": 21952306937105, "value": row['LI /SI /PR']}, #P.R/L.I./S.S Rating
-#                               {"id": 21115551933969, "value": row['Design']},  #Pattern
-#                               {"id": 21558274008721, "value": row['PLANT']},  #Plant
-#                               {"id": 21115763616529, "value": row['REMAINING TREAD DEPTH (%)']},  #% RTD
-#                               {"id": 21115566381201, "value": row['Tyre serial number']},  #Tire Serial Number
-#                               {"id": 21115676972177, "value": row['Remark']},],  #Additional Observation / Remark
-#                                 }
-
-
-# def ticket_excel_api(ticket_list):
-#     url = "https://yokohama-atg.zendesk.com/api/v2/imports/tickets/create_many"
-#     Username = "sreevidya@godigitalcx.com"
-#     Password = "4WKO4l4mWhhlSvLkGByJyJ1zu0fmLlnn6Gm3q6gZ"
-#     auth_string = f"{Username}/token:{Password}"
-#     encoded_auth = base64.b64encode(auth_string.encode()).decode('utf-8')
-#     payload = json.dumps({"tickets": ticket_list})
-#     print("pppppppp",payload)
-#     headers = {
-#         "Content-Type": "application/json",
-#         'Authorization': f'Basic {encoded_auth}'
-#         }
-#     response = requests.request(
-#         "POST",
-#         url,
-#         data=payload,
-#         headers=headers
-#     )
-#     print("+++++++++++++",response)
-#     return response
-
-
-# def process_excel_in_chunks_ticket(file_path, chunk_size=2):
-#     def same_date(date_str):
-#         try:
-#             date = pd.to_datetime(date_str, errors='raise')
-#             return date.strftime('%d/%m/%Y')
-#         except (TypeError, ValueError):
-#             return np.nan
-        
-#     def remove_text_date(date_str):
-#         if not isinstance(date_str, str):
-#             date_str = str(date_str)
-#         match = re.search(r'(\d{1,2}[-/\s]\d{1,2}[-/\s]\d{2,4})', date_str)
-#         if match:
-#             return match.group(1)
-#         return date_str
-#     try:    
-#         df = pd.read_excel(file_path)
-#         total_records = len(df)
-#         for start_idx in range(0, total_records, chunk_size):
-#             end_idx = min(start_idx + chunk_size, total_records)
-#             chunk = df.iloc[start_idx:end_idx].copy()
-#             chunk['Date of Invoice'] = chunk['Date of Invoice'].apply(remove_text_date)
-            
-#             chunk['Date of Invoice'] = chunk['Date of Invoice'].apply(same_date)
-#             if not pd.api.types.is_datetime64_any_dtype(chunk['Date of Invoice']):
-#                 chunk['Date of Invoice'] = pd.to_datetime(chunk['Date of Invoice'], format='%d/%m/%Y', errors='coerce')
-#             chunk['Date of Invoice'] = chunk['Date of Invoice'].dt.strftime("%Y-%m-%d").astype(str)
-            
-#             chunk['Date of Invoice'].fillna("nan", inplace=True)
-#             chunk['Size'].fillna("nan", inplace=True)
-#             chunk['Country'].fillna("nan", inplace=True)
-#             chunk['LI /SI /PR'].fillna("nan", inplace=True)
-#             chunk['Tyre serial number'].fillna("nan", inplace=True)
-#             cus_ticket_list = [create_ticket_structure_excel(row) for _, row in chunk.iterrows()]
-#             ticket_list = [{k: [i for i in v if not (isinstance(i.get('value'), str) and i.get('value') == 'nan')] if k == 'custom_fields' else v for k, v in d.items()} for d in cus_ticket_list]
-#             print("lllllllll",ticket_list)
-#             response = ticket_excel_api(ticket_list)
-            
-#            # get response data
-#             job_status = response.json().get('job_status', {})
-#             job_type = job_status.get('job_type')
-#             url = job_status.get('url')
-#             status = job_status.get('status')
-#             # save the response to the database
-#             Tickets.objects.create(
-#                 job_type=job_type,
-#                 url=url,
-#                 status =status,
-#                 complete_json = job_status
-#             )
-            
-#             print(f"Processed {len(cus_ticket_list)} records. Response: {response.status_code}")
-#         return JsonResponse({"message":response.json()})
-#     except Exception as e:
-#         return JsonResponse({"error": str(e)}) 
-
-
-    
-
 def deleteuser(request):
     da = Tickets.objects.all().delete()
     return JsonResponse({"msg":da})
 
 
 
-# class attachFile(APIView):
-#     def post(self, request, *args, **kwargs):
-#         local_filename = 'myapp/files/comment.csv'
-#         attachment_filename = local_filename
-
-#         auth=('harjot@codenomad.net', 'harjot@123')
-
-#         # upload file
-#         url = 'https://codenomad8499.zendesk.com/api/v2/uploads.json'
-#         params = {'filename': attachment_filename}
-#         # headers = {'Content-Type': 'image/png'}
-#         with open(local_filename, 'rb') as f:
-#             response = requests.post(url, params=params, data=f, auth=auth).json()
-#         upload_token = response['upload']['token']
-
-#         # attach file
-#         url = 'https://codenomad8499.zendesk.com/api/v2/tickets'
-#         payload = {
-#             'ticket': {
-#                 'subject': 'File upload',
-#                 'comment': {
-#                     'body': 'Test file',
-#                     'uploads': [upload_token]
-#                 },
-#                 "tags" : "test",
-#                 "type" : "task"
-#             }
-#         }
-#         response = requests.post(url, json=payload, auth=auth)
-#         return Response({"data":response.json()})
-
-
-
-
-# # Create ticket in bulk
-# def Create_ticket(request):
-#     return process_csv_in_chunks_ticket('myapp/files/comment.csv', chunk_size=100)
-
-# API_URL = f"https://{SUBDOMAIN}.zendesk.com/api/v2/tickets/create_many"
-
-# def create_ticket_structure(row):
-#     return {
-#         "comment": {
-#             "body": row['body']
-#         },
-#         "subject": row['subject'],
-#         "priority": str(row['priority']),
-#         "tags": row['tags'],
-#         "description":row['description'],
-#         "type": row['type'],
-#         "status": row['status']
-#     }
-
-# def ticket_api(ticket_list):
-#     payload = json.dumps({"tickets": ticket_list})
-#     headers = {
-#         "Content-Type": "application/json",
-#     }
-#     response = requests.post(
-#         API_URL,
-#         auth=(ZENDESK_API_USERNAME, ZENDESK_API_PASSWORD),
-#         headers=headers,
-#         data=payload
-#     )
-#     return response
-
-# def process_csv_in_chunks_ticket(file_path, chunk_size=2):
-#     try:
-#         df = pd.read_csv(file_path)
-#         total_records = len(df)
-#         for start_idx in range(0, total_records, chunk_size):
-#             end_idx = start_idx + chunk_size
-#             chunk = df[start_idx:end_idx]
-#             ticket_list = [create_ticket_structure(row) for _, row in chunk.iterrows()]
-#             response = ticket_api(ticket_list)
-#             print(f"Processed {len(ticket_list)} records. Response: {response.status_code}")
-#         return JsonResponse({"message":response.json()})
-#     except Exception as e:
-#         return JsonResponse({"error": str(e)})
-
-
-
-
-import numpy as np
+#### save customer excel to db ########
 
 def save_customer_data(request):
     try:
         file_path = "myapp/customer_files/Test-new-latest-user.xlsx"
         df = pd.read_excel(file_path)
         for index, row in df.iterrows():
-            # Convert each value to string and handle NaN values
             address_parts = [
                 str(row['House Number']),
                 str(row['Street']),
@@ -762,9 +315,10 @@ def save_customer_data(request):
         return HttpResponse("save excel data successfully")
     except Exception as e:
         print(f"Error importing data: {str(e)}")
-        return HttpResponse("false")  # Import failed
+        return HttpResponse("false")
     
 
+########## User add for yokohama ################
 class Addcustomer(APIView):
     def post(self, request, *args, **kwargs):
         try:
@@ -774,7 +328,7 @@ class Addcustomer(APIView):
             return JsonResponse({"error": str(e)})
 
 def customer_add_api(ticket_data):
-    url = "https://yokohama-atg.zendesk.com/api/v2/users/create_many"
+    url = "https://yokohama-atg.zendesk.com/api/v2/imports/tickets/create_many"
     username = "sreevidya@godigitalcx.com"
     password = "4WKO4l4mWhhlSvLkGByJyJ1zu0fmLlnn6Gm3q6gZ"
     auth_string = f"{username}/token:{password}"
@@ -789,7 +343,7 @@ def customer_add_api(ticket_data):
     return response
 
 def process_database_records_in_chunks(chunk_size=100):
-    total_records = UserData.objects.count()  # Count total records in the database
+    total_records = UserData.objects.count()
     for start_idx in range(0, total_records, chunk_size):
         end_idx = min(start_idx + chunk_size, total_records)
         records = UserData.objects.all()[start_idx:end_idx]
@@ -821,10 +375,8 @@ def process_database_records_in_chunks(chunk_size=100):
                     "user_fields": user_fields
                 })
 
-
         response = customer_add_api(ticket_data)
         
-        # Handle response
         if response.status_code == 200:
             job_status = response.json().get('job_status', {})
             job_type = job_status.get('job_type')
@@ -832,7 +384,7 @@ def process_database_records_in_chunks(chunk_size=100):
             print("url====",url)
             status = job_status.get('status')
 
-            # Save response to the database or log it as required
+            # Save response in database
             UserResponse.objects.create(
                 job_type=job_type,
                 url=url,
@@ -865,7 +417,7 @@ class ShowUser(APIView):
             response = requests.get(url, headers=headers)
             data = response.json()
             all_users.extend(data['users'])
-            url = data.get('next_page')  # Use .get() to avoid KeyError if 'next_page' doesn't exist
+            url = data.get('next_page')
             for user in data['users']:
                 customer_number = user['user_fields']['distributor_number']
                 user_id = user['id']
@@ -879,20 +431,278 @@ class ShowUser(APIView):
         return Response({"users": all_users})
 
 
-
+############### For save excel data in db ###############
 def save_csv_data(request):
     try:
-        file_path = "/home/oem/Downloads/mapsize.ods"
+        file_path = "/home/oem/Downloads/mapdefect_code.ods"
         df = pd.read_excel(file_path)
         print("DataFrame:", df)
         for index, row in df.iterrows():
             print("----",row)
-            ExcelSize.objects.create(
-                map_value=row['Mapvalue'],  # Access row data using string index
-                size_value=row['excelsize'],
+            Defect_code.objects.create(
+                # mapdesign=row['mapdesign'],
+                # excel_design=row['Design'],
+                map_defect_code=row['Map defect code'],
+                excel_defect_code=row['Defect Code Description'],
+
+
             )
 
         return HttpResponse("save csv data successfully")
     except Exception as e:
         print(f"Error importing data: {str(e)}")
-        return HttpResponse(str(e), "false")  # Import failed, returning error message
+        return HttpResponse(str(e), "false")
+
+############# Set requster_id in db ################
+def requester_id(request):
+    user_mapping_numbers = UserMapping.objects.values_list('customer_number', flat=True)
+    
+    customer_ticket_codes = CustomerTicket.objects.values_list('customer_code', flat=True)
+    
+    for customer_number in user_mapping_numbers:
+        
+        if customer_number in customer_ticket_codes:
+            user_ids = UserMapping.objects.filter(customer_number=customer_number).values_list('user_ids', flat=True)
+            print("User IDs:", list(user_ids))
+            
+            CustomerTicket.objects.filter(customer_code=customer_number).update(requester_id=user_ids)
+    
+    return JsonResponse({"msg": "done"})
+
+
+############ Replace tire size mapping #################
+def Sizemapping(request):
+    size_mapping = ExcelSize.objects.values_list('size_value', flat=True)
+    
+    customer_size = CustomerTicket.objects.values_list('size', flat=True)
+    
+    for data in size_mapping:
+        
+        if data in customer_size:
+            size_map = ExcelSize.objects.filter(size_value=data).values_list('map_value', flat=True)
+            print("User IDs:", list(size_map))
+            
+            CustomerTicket.objects.filter(size=data).update(mapsize=size_map)
+    
+    return JsonResponse({"msg": "done"})
+
+
+########### Replace design mapping #############
+def Designmapping(request):
+    size_mapping = DesignLISIMAP.objects.values_list('excel_design', flat=True)
+    
+    customer_size = CustomerTicket.objects.values_list('design', flat=True)
+    
+    for data in size_mapping:
+        # print("------", data)
+        if data in customer_size:
+            design_ids = DesignLISIMAP.objects.filter(excel_design=data).values_list('mapdesign', flat=True)
+            print("Design IDs:", list(design_ids))
+            
+            CustomerTicket.objects.filter(design=data).update(map_design=design_ids)
+    
+    return JsonResponse({"msg": "done"})
+
+
+############ Replace excel sheet li_si_pr ################ 
+def LI_SImapping(request):
+    size_mapping = LI_SI_PRMAP.objects.values_list('excel_li_si', flat=True)
+    
+    customer_size = CustomerTicket.objects.values_list('li_si_pr', flat=True)
+    for data in size_mapping:
+        
+        if data in customer_size:
+            li_si_pr = LI_SI_PRMAP.objects.filter(excel_li_si=data).values_list('map_li_si_pr', flat=True)
+            print("Design IDs:", list(li_si_pr))
+            
+            CustomerTicket.objects.filter(li_si_pr=data).update(map_li_si_pr=li_si_pr)
+    
+    return JsonResponse({"msg": "done"})
+
+
+########## Replace excel sheet defect code ################# 
+def defect_code_mapping(request):
+    size_mapping = Defect_code.objects.values_list('excel_defect_code', flat=True)
+    
+    customer_size = CustomerTicket.objects.values_list('defect_code_description', flat=True)
+    for data in size_mapping:
+        
+        if data in customer_size:
+            defect_des = Defect_code.objects.filter(excel_defect_code=data).values_list('map_defect_code', flat=True)
+            print("Design IDs:", list(defect_des))
+            
+            CustomerTicket.objects.filter(defect_code_description=data).update(map_defect_code=defect_des)
+    
+    return JsonResponse({"msg": "done"})
+
+########## Ticket create for Yokohama #############
+class AddTicket(APIView):
+    def post(self, request, *args, **kwargs):
+        try:
+            process_database_records_in_chunks()
+            return JsonResponse({"message": "Processing complete"})
+        except Exception as e:
+            return JsonResponse({"error": str(e)})
+
+def ticket_add_api(ticket_data):
+    url = "https://yokohama-atg.zendesk.com/api/v2/imports/tickets/create_many"
+    username = "sreevidya@godigitalcx.com"
+    password = "4WKO4l4mWhhlSvLkGByJyJ1zu0fmLlnn6Gm3q6gZ"
+    auth_string = f"{username}/token:{password}"
+    encoded_auth = base64.b64encode(auth_string.encode()).decode('utf-8')
+    payload = json.dumps({"tickets": ticket_data})
+    print("payyyyyyyyy",payload)
+    headers = {
+        "Content-Type": "application/json",
+        'Authorization': f'Basic {encoded_auth}'
+    }
+    response = requests.post(url, data=payload, headers=headers)
+    return response
+
+def process_database_records_in_chunks(chunk_size=10):
+    total_records = CustomerTicket.objects.count()
+    for start_idx in range(0, total_records, chunk_size):
+        end_idx = min(start_idx + chunk_size, total_records)
+        records = CustomerTicket.objects.all()[start_idx:end_idx]
+        ticket_data_list = [] 
+        
+        for record in records:
+            our_recommendation_value = int(record.our_recommendation) if record.our_recommendation.isdigit() else 0
+            our_recommendation_value = our_recommendation_value > 0
+            ticket_data = {
+                        
+                    "comment": {
+                        "body": record.defect_code_description
+                    },
+                    "status": 'closed',
+                    "subject":str(record.date),
+                    "tags": str(record.claim_no),
+                    "requester_id": str(record.requester_id),
+                    "custom_fields": [
+                        {"id": 21115540894737, "value": record.cat_no},
+                        {"id": 17459369077521, "value": record.defect_code_description},
+                        {"id": 17459369082641, "value": record.disposed_by},
+                        {"id": 17459414176657, "value": record.date},
+                        {"id": 21115518082321, "value": record.type},
+                        {"id": 21115488705297, "value": record.country_working},
+                        {"id": 21256551170961, "value": record.customer_name},
+                        {"id": 21145491038481, "value": record.no_of_tyre},
+                        {"id": 21145754951697, "value": our_recommendation_value},
+                        {"id": 22364299286289, "value": record.mapsize},
+                        {"id": 21115597806225, "value": record.date_of_invoice},
+                        {"id": 22339841877137, "value": record.map_li_si_pr},
+                        {"id": 21115726824849, "value": record.map_defect_code},
+                        {"id": 22339398247057, "value": record.map_design},
+                        {"id": 21558274008721, "value": record.plant},
+                        {"id": 21115763616529, "value": record.remaining_tread_depth},
+                        {"id": 21115566381201, "value": record.tyre_serial_no},
+                        {"id": 22306316700433, "value": record.region},
+                        {"id": 21115676972177, "value": record.remarks},
+
+                    ]
+                }
+            
+            # Filter out dictionaries with value "nan" from custom_fields
+            ticket_data["custom_fields"] = [
+                field for field in ticket_data["custom_fields"] if field.get("value") != "nan"
+            ]
+            
+            ticket_data_list.append(ticket_data)
+        
+        response = ticket_add_api(ticket_data_list)
+        
+        if response.status_code == 200:
+            job_status = response.json().get('job_status', {})
+            job_type = job_status.get('job_type')
+            url = job_status.get('url')
+            status = job_status.get('status')
+
+           #save zendesk response in db
+            UserResponse.objects.create(
+                job_type=job_type,
+                url=url,
+                status=status,
+                complete_json=job_status
+            )
+
+            print(f"Processed {len(records)} records. Response: {response.status_code}")
+        else:
+            print(f"Error processing records. Status code: {response.status_code}")
+
+
+def ShowYokoTicket(request):
+    url = "https://yokohama-atg.zendesk.com/api/v2/tickets"
+    username = "sreevidya@godigitalcx.com"
+    password = "4WKO4l4mWhhlSvLkGByJyJ1zu0fmLlnn6Gm3q6gZ"
+    auth_string = f"{username}/token:{password}"
+    encoded_auth = base64.b64encode(auth_string.encode()).decode('utf-8')
+    headers = {
+        "Content-Type": "application/json",
+        'Authorization': f'Basic {encoded_auth}'
+    }
+    all_tickets = []
+    ticket_ids = []
+    claim = []
+
+    while url:
+        response = requests.get(url, headers=headers)
+        data = response.json()
+        all_tickets.extend(data['tickets'])
+        url = data.get('next_page')
+        print("uuuuuuuu",url)
+        for ticket in data['tickets']:
+            ticket_id = ticket['id']
+            tags = ticket['tags']
+            legacy_item = [item for item in tags if item.startswith("legacy_")]
+            if legacy_item:
+                da = legacy_item[0]
+                print("daaaaaaad",da)
+                ticket_id = ticket['id']
+                print("ttttttttt",ticket_id)
+                ticket_ids.append(ticket_id)
+                claim.append(da)
+            else:
+                print("No item with 'legacy_' found.")
+      
+    return JsonResponse({"msg":"done"})
+
+
+
+def fake_user(request):
+    try:
+        file_path = "myapp/customer_files/fakeuser.csv"
+        df = pd.read_csv(file_path)
+        # print("DataFrame:", df)
+        for index, row in df.iterrows():
+            print("----",row)
+            Fakeuser.objects.create(
+                name=row['name'],
+                email=row['email'],
+            )
+
+        return HttpResponse("save csv data successfully")
+    except Exception as e:
+        print(f"Error importing data: {str(e)}")
+        return HttpResponse(str(e), "false")
+# def fake_user(request):
+#     try:
+#         file_path = "myapp/customer_files/fakeuser.csv"
+#         df = pd.read_csv(file_path)
+#         print("DataFrame:", df)
+
+#         fake_users = []
+#         for index, row in df.iterrows():
+#             fake_user = Fakeuser(
+#                 name=row['name'],
+#                 email=row['email'],
+#                 # Add other fields here as needed
+#             )
+#             fake_users.append(fake_user)
+
+#         # Bulk create the fake users
+#         Fakeuser.objects.bulk_create(fake_users)
+
+#         return HttpResponse("Saved CSV data successfully")
+#     except Exception as e:
+#         print(f"Error importing data: {str(e)}")
+#         return HttpResponse(str(e), "false")

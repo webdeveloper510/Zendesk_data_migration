@@ -106,6 +106,12 @@ class CustomerTicket(models.Model):
     customer_name = models.CharField(max_length=300,null=True, blank=True)
     country_working = models.CharField(max_length=300,null=True, blank=True)
     region = models.CharField(max_length=300,null=True, blank=True)
+    requester_id = models.CharField(max_length=300,null=True, blank=True)
+    mapsize = models.CharField(max_length=300,null=True, blank=True)
+    map_li_si_pr = models.CharField(max_length=300,null=True, blank=True)
+    map_design = models.CharField(max_length=300,null=True, blank=True)
+    map_defect_code = models.CharField(max_length=300,null=True, blank=True)
+
 
     user_mapping = models.ForeignKey(UserMapping, on_delete=models.SET_NULL, null=True, blank=True, related_name='customer_tickets')
     
@@ -113,18 +119,28 @@ class CustomerTicket(models.Model):
 
 
 
+class DesignLISIMAP(models.Model):
+    mapdesign = models.CharField(max_length=300,null=True, blank=True)
+    excel_design = models.CharField(max_length=300,null=True, blank=True)
+    
 
 
 
+class LI_SI_PRMAP(models.Model):
+    map_li_si_pr = models.CharField(max_length=300,null=True, blank=True)
+    excel_li_si = models.CharField(max_length=300,null=True, blank=True)
+
+
+class Defect_code(models.Model):
+    map_defect_code = models.CharField(max_length=300,null=True, blank=True)
+    excel_defect_code = models.CharField(max_length=300,null=True, blank=True)
 
 
 
-
-
-
-
-
-
+#for testing
+class Fakeuser(models.Model):
+    name = models.CharField(max_length=300,null=True, blank=True)
+    email = models.CharField(max_length=300,null=True, blank=True)
 
 
 
