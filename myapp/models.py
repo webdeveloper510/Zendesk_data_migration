@@ -113,9 +113,9 @@ class CustomerTicket(models.Model):
     map_defect_code = models.CharField(max_length=300,null=True, blank=True)
 
 
-    user_mapping = models.ForeignKey(UserMapping, on_delete=models.SET_NULL, null=True, blank=True, related_name='customer_tickets')
+    # user_mapping = models.ForeignKey(UserMapping, on_delete=models.SET_NULL, null=True, blank=True, related_name='customer_tickets')
     
-    excel_size = models.ForeignKey(ExcelSize, on_delete=models.SET_NULL, null=True, blank=True, related_name='customer_tickets')
+    # excel_size = models.ForeignKey(ExcelSize, on_delete=models.SET_NULL, null=True, blank=True, related_name='customer_tickets')
 
 
 
@@ -143,4 +143,7 @@ class Fakeuser(models.Model):
     email = models.CharField(max_length=300,null=True, blank=True)
 
 
-
+#for ticket ids
+class Ticket_ids(models.Model):
+    ticket_ids = models.CharField(max_length=300,null=True, blank=True)
+    claims = models.CharField(max_length=300,null=True, blank=True)

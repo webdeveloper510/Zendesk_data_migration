@@ -327,14 +327,14 @@ class Addcustomer(APIView):
         except Exception as e:
             return JsonResponse({"error": str(e)})
 
-def customer_add_api(ticket_data):
+"""For add customer in zendesk"""
+def customer_add_api(user_data):
     url = "https://yokohama-atg.zendesk.com/api/v2/imports/tickets/create_many"
     username = "sreevidya@godigitalcx.com"
     password = "4WKO4l4mWhhlSvLkGByJyJ1zu0fmLlnn6Gm3q6gZ"
     auth_string = f"{username}/token:{password}"
     encoded_auth = base64.b64encode(auth_string.encode()).decode('utf-8')
-    payload = json.dumps(ticket_data)
-    print("payyyyyyyyy",payload)
+    payload = json.dumps(user_data)
     headers = {
         "Content-Type": "application/json",
         'Authorization': f'Basic {encoded_auth}'
@@ -342,13 +342,13 @@ def customer_add_api(ticket_data):
     response = requests.post(url, data=payload, headers=headers)
     return response
 
+"""For get users record in db"""
 def process_database_records_in_chunks(chunk_size=100):
     total_records = UserData.objects.count()
     for start_idx in range(0, total_records, chunk_size):
         end_idx = min(start_idx + chunk_size, total_records)
         records = UserData.objects.all()[start_idx:end_idx]
-        print("rrrrrrr",records)
-        ticket_data = {"users": []}
+        user_data = {"users": []}
         
         for record in records:
             user_fields = {
@@ -363,25 +363,24 @@ def process_database_records_in_chunks(chunk_size=100):
 
              # Add email only if it's not NaN
             if record.email and str(record.email).lower() != 'nan':
-                ticket_data["users"].append({
+                user_data["users"].append({
                     "email": str(record.email),
                     "name": str(record.name),
                     "user_fields": user_fields
                 })
 
             else:
-                ticket_data["users"].append({
+                user_data["users"].append({
                     "name": str(record.name),
                     "user_fields": user_fields
                 })
 
-        response = customer_add_api(ticket_data)
+        response = customer_add_api(user_data)
         
         if response.status_code == 200:
             job_status = response.json().get('job_status', {})
             job_type = job_status.get('job_type')
             url = job_status.get('url')
-            print("url====",url)
             status = job_status.get('status')
 
             # Save response in database
@@ -436,16 +435,18 @@ class ShowUser(APIView):
 ############### For save excel data in db ###############
 def save_csv_data(request):
     try:
-        file_path = "/home/oem/Downloads/mapdefect_code.ods"
+        file_path = "/home/oem/Downloads/mapdesign.ods"
         df = pd.read_excel(file_path)
         print("DataFrame:", df)
         for index, row in df.iterrows():
             print("----",row)
-            Defect_code.objects.create(
+            LI_SI_PRMAP.objects.create(
                 # mapdesign=row['mapdesign'],
                 # excel_design=row['Design'],
-                map_defect_code=row['Map defect code'],
-                excel_defect_code=row['Defect Code Description'],
+                # map_value=row['Mapvalue'],
+                # size_value=row['excelsize'],
+                map_li_si_pr=row['map_li_si_pr'],
+                excel_li_si=row['LI /SI /PR'],
 
 
             )
@@ -469,7 +470,7 @@ def requester_id(request):
             
             CustomerTicket.objects.filter(customer_code=customer_number).update(requester_id=user_ids)
     
-    return JsonResponse({"msg": "done"})
+    return JsonResponse({"message": "done"})
 
 
 ############ Replace tire size mapping #################
@@ -486,7 +487,7 @@ def Sizemapping(request):
             
             CustomerTicket.objects.filter(size=data).update(mapsize=size_map)
     
-    return JsonResponse({"msg": "done"})
+    return JsonResponse({"message": "done"})
 
 
 ########### Replace design mapping #############
@@ -503,7 +504,7 @@ def Designmapping(request):
             
             CustomerTicket.objects.filter(design=data).update(map_design=design_ids)
     
-    return JsonResponse({"msg": "done"})
+    return JsonResponse({"message": "done"})
 
 
 ############ Replace excel sheet li_si_pr ################ 
@@ -519,7 +520,7 @@ def LI_SImapping(request):
             
             CustomerTicket.objects.filter(li_si_pr=data).update(map_li_si_pr=li_si_pr)
     
-    return JsonResponse({"msg": "done"})
+    return JsonResponse({"message": "done"})
 
 
 ########## Replace excel sheet defect code ################# 
@@ -535,7 +536,8 @@ def defect_code_mapping(request):
             
             CustomerTicket.objects.filter(defect_code_description=data).update(map_defect_code=defect_des)
     
-    return JsonResponse({"msg": "done"})
+    return JsonResponse({"message": "done"})
+
 
 ########## Ticket create for Yokohama #############
 class AddTicket(APIView):
@@ -545,7 +547,8 @@ class AddTicket(APIView):
             return JsonResponse({"message": "Processing complete"})
         except Exception as e:
             return JsonResponse({"error": str(e)})
-
+        
+"""For add ticket in zendesk"""
 def ticket_add_api(ticket_data):
     url = "https://yokohama-atg.zendesk.com/api/v2/imports/tickets/create_many"
     username = "sreevidya@godigitalcx.com"
@@ -553,14 +556,16 @@ def ticket_add_api(ticket_data):
     auth_string = f"{username}/token:{password}"
     encoded_auth = base64.b64encode(auth_string.encode()).decode('utf-8')
     payload = json.dumps({"tickets": ticket_data})
-    print("payyyyyyyyy",payload)
     headers = {
         "Content-Type": "application/json",
         'Authorization': f'Basic {encoded_auth}'
     }
     response = requests.post(url, data=payload, headers=headers)
+    print("rrrrr",response)
+
     return response
 
+"""For get records in database"""
 def process_database_records_in_chunks(chunk_size=10):
     total_records = CustomerTicket.objects.count()
     for start_idx in range(0, total_records, chunk_size):
@@ -599,7 +604,10 @@ def process_database_records_in_chunks(chunk_size=10):
                         {"id": 21115763616529, "value": record.remaining_tread_depth},
                         {"id": 21115566381201, "value": record.tyre_serial_no},
                         {"id": 22306316700433, "value": record.region},
-                        {"id": 21115676972177, "value": record.remarks},
+                        {"id": 23148917093265, "value": record.remarks},
+                        {"id": 24218426495889, "value": record.design},
+                        {"id": 24429125347857, "value": record.size},
+
 
                     ]
                 }
@@ -652,18 +660,22 @@ def ShowYokoTicket(request):
         data = response.json()
         all_tickets.extend(data['tickets'])
         url = data.get('next_page')
-        print("uuuuuuuu",url)
+        
         for ticket in data['tickets']:
             ticket_id = ticket['id']
             tags = ticket['tags']
             legacy_item = [item for item in tags if item.startswith("legacy_")]
             if legacy_item:
                 da = legacy_item[0]
-                print("daaaaaaad",da)
                 ticket_id = ticket['id']
-                print("ttttttttt",ticket_id)
                 ticket_ids.append(ticket_id)
+                print("ttttt",ticket_ids)
+
                 claim.append(da)
+                print("cccccc",claim)
+
+                # Save ticket_id and claim to the database
+                # Ticket_ids.objects.create(ticket_ids=ticket_id, claims=da)
             else:
                 print("No item with 'legacy_' found.")
       
@@ -675,7 +687,6 @@ def fake_user(request):
     try:
         file_path = "myapp/customer_files/fakeuser.csv"
         df = pd.read_csv(file_path)
-        # print("DataFrame:", df)
         for index, row in df.iterrows():
             print("----",row)
             Fakeuser.objects.create(
