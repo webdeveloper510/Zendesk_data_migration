@@ -318,7 +318,10 @@ def save_customer_data(request):
         return HttpResponse("false")
     
 
-########## User add for yokohama ################
+################################## Yokohama api using database maping ############################## 
+
+
+########## User add in yokohama account ################
 class Addcustomer(APIView):
     def post(self, request, *args, **kwargs):
         try:
@@ -435,18 +438,20 @@ class ShowUser(APIView):
 ############### For save excel data in db ###############
 def save_csv_data(request):
     try:
-        file_path = "/home/oem/Downloads/mapdesign.ods"
+        file_path = "/home/oem/Downloads/mapdefect_code.ods"
         df = pd.read_excel(file_path)
         print("DataFrame:", df)
         for index, row in df.iterrows():
             print("----",row)
-            LI_SI_PRMAP.objects.create(
+            Defect_code.objects.create(
                 # mapdesign=row['mapdesign'],
                 # excel_design=row['Design'],
                 # map_value=row['Mapvalue'],
                 # size_value=row['excelsize'],
-                map_li_si_pr=row['map_li_si_pr'],
-                excel_li_si=row['LI /SI /PR'],
+                # map_li_si_pr=row['map_li_si_pr'],
+                # excel_li_si=row['LI /SI /PR'],
+                map_defect_code=row['Map defect code'],
+                excel_defect_code=row['Defect Code Description'],
 
 
             )
@@ -566,7 +571,7 @@ def ticket_add_api(ticket_data):
     return response
 
 """For get records in database"""
-def process_database_records_in_chunks(chunk_size=10):
+def process_database_records_in_chunks(chunk_size=2):
     total_records = CustomerTicket.objects.count()
     for start_idx in range(0, total_records, chunk_size):
         end_idx = min(start_idx + chunk_size, total_records)
@@ -607,7 +612,6 @@ def process_database_records_in_chunks(chunk_size=10):
                         {"id": 23148917093265, "value": record.remarks},
                         {"id": 24218426495889, "value": record.design},
                         {"id": 24429125347857, "value": record.size},
-
 
                     ]
                 }
@@ -669,11 +673,8 @@ def ShowYokoTicket(request):
                 da = legacy_item[0]
                 ticket_id = ticket['id']
                 ticket_ids.append(ticket_id)
-                print("ttttt",ticket_ids)
 
                 claim.append(da)
-                print("cccccc",claim)
-
                 # Save ticket_id and claim to the database
                 # Ticket_ids.objects.create(ticket_ids=ticket_id, claims=da)
             else:

@@ -11,6 +11,7 @@ urlpatterns = [
     path('delete',views.deleteuser),
     path('save_user', views.save_customer_data),
     path('showuser_requster', views.ShowUser.as_view()),
+    
     ########### For Yokohama ################
     path("customerdata", views.Addcustomer.as_view()),
     path("addticket", views.AddTicket.as_view()),
