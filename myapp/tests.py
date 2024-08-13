@@ -25,7 +25,7 @@
 
 # # def test(request):
 # #     base_url = "https://yokohama-atg.zendesk.com/api/v2/users/"
-# #     username = "sreevidya@godigitalcx.com"
+# #     username = "support@godigitalcx.com"
 # #     password = "4WKO4l4mWhhlSvLkGByJyJ1zu0fmLlnn6Gm3q6gZ"
 # #     auth_string = f"{username}/token:{password}"
 # #     encoded_auth = base64.b64encode(auth_string.encode()).decode('utf-8')

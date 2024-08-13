@@ -84,7 +84,7 @@ WSGI_APPLICATION = 'zendesk.wsgi.application'
 DATABASES = {
     'default': {
     'ENGINE': 'django.db.backends.mysql',
-    'NAME': 'Zendesk',
+    'NAME': 'Zendesk_migrations',
     'USER': 'root',
     'PASSWORD': '',
     'HOST': 'localhost', # Or an IP Address that your DB is hosted on

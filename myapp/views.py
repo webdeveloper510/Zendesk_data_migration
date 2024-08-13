@@ -18,6 +18,7 @@ import re
 # Create your views here.
 
 
+import math
 
 
 
@@ -25,15 +26,20 @@ import re
 
 def save_customer_ticket_excel(request):
     try:
-        file_path = "/home/oem/Downloads/testyoko.csv"
+        file_path = "/home/codenomad/Downloads/Data for Migration from 1st Jan-24 to 31st Jul-24.xlsx"
         # Specify dtype for multiple columns
-        df = pd.read_csv(file_path, dtype={'OUR RECOMMENDATION': str, 'REMAINING TREAD DEPTH (%)': str})
+        df = pd.read_excel(file_path, dtype={'OUR RECOMMENDATION': str, 'REMAINING TREAD DEPTH (%)': str})
     
         for index, row in df.iterrows():
             legacy_claim_no = "legacy_" + str(row['CLAIM NO'])
             unique_data_id = "uid_" + str(row['Unique ID'])
             claim_no_with_migration = "data_migration" + ", " + legacy_claim_no + ", " + unique_data_id
+            print("dddddddd", row['Customer code'])
 
+            # customer_code_str = str(row['Customer code'])
+            # if customer_code_str.isnumeric():
+            #     Customer_code = int(customer_code_str)
+    
             CustomerTicket.objects.create(
                 unique_id=row['Unique ID'],
                 date=row['Date'],
@@ -44,7 +50,7 @@ def save_customer_ticket_excel(request):
                 type=row['TYPE'],
                 cat_no=row['CAT No.'],
                 tyre_serial_no=row['TYRE SERIAL NO.'],
-                plant = row['PLANT'],
+                plant=row['PLANT'],
                 claim_no=claim_no_with_migration,
                 date_of_invoice=row['DATE OF INVOICE/ SALE/ MOUNTING'],
                 invoice_details=row['Invoice details'],
@@ -54,15 +60,16 @@ def save_customer_ticket_excel(request):
                 remarks=row['REMARKS'],
                 disposed_by=row['DISPOSED BY'],
                 customer_code=row['Customer code'],
+                # map_li_si_pr=row['map_li_si_pr'],
                 customer_name=row['CUSTOMER NAME'],
                 country_working=row['Country-working'],
                 region=row['Region'],
-                )
+            )
 
         return HttpResponse("save excel data successfully")
     except Exception as e:
         print(f"Error importing data: {str(e)}")
-        return HttpResponse(e,"false")
+        return HttpResponse(f"Error importing data: {str(e)}", status=500)
 
 
     
@@ -106,7 +113,7 @@ def customer_structure(row):
             
 def user_excel_api(customer_list):
     url = "https://yokohama-atg.zendesk.com/api/v2/users/create_many"
-    Username = "sreevidya@godigitalcx.com"
+    Username = "support@godigitalcx.com"
     Password = "4WKO4l4mWhhlSvLkGByJyJ1zu0fmLlnn6Gm3q6gZ"
     auth_string = f"{Username}/token:{Password}"
     encoded_auth = base64.b64encode(auth_string.encode()).decode('utf-8')
@@ -202,7 +209,7 @@ def create_ticket_structure_excel(row):
 
 def ticket_excel_api(ticket_list):
     url = "https://yokohama-atg.zendesk.com/api/v2/imports/tickets/create_many"
-    Username = "sreevidya@godigitalcx.com"
+    Username = "support@godigitalcx.com"
     Password = "4WKO4l4mWhhlSvLkGByJyJ1zu0fmLlnn6Gm3q6gZ"
     auth_string = f"{Username}/token:{Password}"
     encoded_auth = base64.b64encode(auth_string.encode()).decode('utf-8')
@@ -333,7 +340,7 @@ class Addcustomer(APIView):
 """For add customer in zendesk"""
 def customer_add_api(user_data):
     url = "https://yokohama-atg.zendesk.com/api/v2/imports/tickets/create_many"
-    username = "sreevidya@godigitalcx.com"
+    username = "support@godigitalcx.com"
     password = "4WKO4l4mWhhlSvLkGByJyJ1zu0fmLlnn6Gm3q6gZ"
     auth_string = f"{username}/token:{password}"
     encoded_auth = base64.b64encode(auth_string.encode()).decode('utf-8')
@@ -404,7 +411,7 @@ class ShowUser(APIView):
     def get(self, request, *args, **kwargs):
 
         url = "https://yokohama-atg.zendesk.com/api/v2/users"
-        username = "sreevidya@godigitalcx.com"
+        username = "support@godigitalcx.com"
         password = "4WKO4l4mWhhlSvLkGByJyJ1zu0fmLlnn6Gm3q6gZ"
         auth_string = f"{username}/token:{password}"
         encoded_auth = base64.b64encode(auth_string.encode()).decode('utf-8')
@@ -438,20 +445,20 @@ class ShowUser(APIView):
 ############### For save excel data in db ###############
 def save_csv_data(request):
     try:
-        file_path = "/home/oem/Downloads/mapdefect_code.ods"
+        file_path = "/home/codenomad/Downloads/backup-download/mapdesign.ods"
         df = pd.read_excel(file_path)
         print("DataFrame:", df)
         for index, row in df.iterrows():
             print("----",row)
-            Defect_code.objects.create(
-                # mapdesign=row['mapdesign'],
-                # excel_design=row['Design'],
+            DesignLISIMAP.objects.create(
+                mapdesign=row['mapdesign'],
+                excel_design=row['Design'],
                 # map_value=row['Mapvalue'],
                 # size_value=row['excelsize'],
                 # map_li_si_pr=row['map_li_si_pr'],
                 # excel_li_si=row['LI /SI /PR'],
-                map_defect_code=row['Map defect code'],
-                excel_defect_code=row['Defect Code Description'],
+                # map_defect_code=row['Map defect code'],
+                # excel_defect_code=row['Defect Code Description'],
 
 
             )
@@ -464,17 +471,22 @@ def save_csv_data(request):
 ############# Set requster_id in db ################
 def requester_id(request):
     user_mapping_numbers = UserMapping.objects.values_list('customer_number', flat=True)
-    
     customer_ticket_codes = CustomerTicket.objects.values_list('customer_code', flat=True)
     
+    # Check if customer_ticket_codes is empty
     for customer_number in user_mapping_numbers:
-        
+
         if customer_number in customer_ticket_codes:
-            user_ids = UserMapping.objects.filter(customer_number=customer_number).values_list('user_ids', flat=True)
-            print("User IDs:", list(user_ids))
+            if customer_number:
+                user_ids = UserMapping.objects.filter(customer_number=customer_number).values_list('user_ids', flat=True)
             
-            CustomerTicket.objects.filter(customer_code=customer_number).update(requester_id=user_ids)
-    
+                if user_ids:
+                    # Assuming you want to pick the first user_id for the update
+                    # first_user_id = user_ids[0]
+                    CustomerTicket.objects.filter(customer_code=customer_number).update(requester_id=user_ids)
+            # if not customer_ticket_codes:
+            #     # Update all requester_id to null if customer_ticket_codes is empty
+            #     CustomerTicket.objects.all().update(requester_id=None)
     return JsonResponse({"message": "done"})
 
 
@@ -498,50 +510,102 @@ def Sizemapping(request):
 ########### Replace design mapping #############
 def Designmapping(request):
     size_mapping = DesignLISIMAP.objects.values_list('excel_design', flat=True)
-    
     customer_size = CustomerTicket.objects.values_list('design', flat=True)
-    
+
     for data in size_mapping:
-        # print("------", data)
         if data in customer_size:
             design_ids = DesignLISIMAP.objects.filter(excel_design=data).values_list('mapdesign', flat=True)
-            print("Design IDs:", list(design_ids))
-            
-            CustomerTicket.objects.filter(design=data).update(map_design=design_ids)
-    
+            if design_ids:
+                CustomerTicket.objects.filter(design=data).update(map_design=design_ids[0])
+
     return JsonResponse({"message": "done"})
 
 
 ############ Replace excel sheet li_si_pr ################ 
-def LI_SImapping(request):
-    size_mapping = LI_SI_PRMAP.objects.values_list('excel_li_si', flat=True)
+# def LI_SImapping(request):
+#     size_mapping = LI_SI_PRMAP.objects.values_list('excel_li_si', flat=True)
     
-    customer_size = CustomerTicket.objects.values_list('li_si_pr', flat=True)
-    for data in size_mapping:
+#     customer_size = CustomerTicket.objects.values_list('li_si_pr', flat=True)
+#     for data in size_mapping:
         
-        if data in customer_size:
-            li_si_pr = LI_SI_PRMAP.objects.filter(excel_li_si=data).values_list('map_li_si_pr', flat=True)
-            print("Design IDs:", list(li_si_pr))
-            
-            CustomerTicket.objects.filter(li_si_pr=data).update(map_li_si_pr=li_si_pr)
+#         if data in customer_size:
+#             li_si_pr = LI_SI_PRMAP.objects.filter(excel_li_si=data).values_list('map_li_si_pr', flat=True)
+#             if li_si_pr:
+#                 CustomerTicket.objects.filter(li_si_pr=data).update(map_li_si_pr=li_si_pr)
     
+#     return JsonResponse({"message": "done"})
+
+# def LI_SImapping(request):
+#     size_mapping = LI_SI_PRMAP.objects.values_list('excel_li_si', flat=True)
+    
+#     customer_size = CustomerTicket.objects.values_list('li_si_pr', flat=True)
+#     for data in size_mapping:
+        
+#         if data in customer_size:
+#             li_si_pr_list = list(LI_SI_PRMAP.objects.filter(excel_li_si=data).values_list('map_li_si_pr', flat=True))
+#             if li_si_pr_list:
+#                 sa =CustomerTicket.objects.filter(li_si_pr=data).update(map_li_si_pr=li_si_pr_list)
+#     return JsonResponse({"message": "done"})
+
+
+
+# def LI_SImapping(request):
+#     size_mapping = LI_SI_PRMAP.objects.values_list('excel_li_si', flat=True)
+#     customer_size = CustomerTicket.objects.values_list('li_si_pr', flat=True)
+
+#     for data in size_mapping:
+#         if data in customer_size:
+#                 li_si_pr_value = LI_SI_PRMAP.objects.filter(excel_li_si=data).values_list('map_li_si_pr', flat=True)
+#                 if li_si_pr_value:
+                    
+#                     CustomerTicket.objects.filter(li_si_pr=data).update(map_li_si_pr=li_si_pr_value)
+
+#     return JsonResponse({"message": "done"})
+
+
+from django.db.models import Case, When, Value
+
+def LI_SImapping(request):
+    mappings = LI_SI_PRMAP.objects.values('excel_li_si', 'map_li_si_pr')
+
+    # Create a list of conditions for Case-When
+    conditions = [
+        When(li_si_pr=mapping['excel_li_si'], then=Value(mapping['map_li_si_pr']))
+        for mapping in mappings
+    ]
+
+    if conditions:
+        CustomerTicket.objects.update(
+            map_li_si_pr=Case(
+                *conditions,
+                default=Value(None),
+            )
+        )
+
     return JsonResponse({"message": "done"})
+
 
 
 ########## Replace excel sheet defect code ################# 
 def defect_code_mapping(request):
-    size_mapping = Defect_code.objects.values_list('excel_defect_code', flat=True)
-    
-    customer_size = CustomerTicket.objects.values_list('defect_code_description', flat=True)
-    for data in size_mapping:
-        
-        if data in customer_size:
-            defect_des = Defect_code.objects.filter(excel_defect_code=data).values_list('map_defect_code', flat=True)
-            print("Design IDs:", list(defect_des))
-            
-            CustomerTicket.objects.filter(defect_code_description=data).update(map_defect_code=defect_des)
-    
+    size_mapping = Defect_code.objects.values('excel_defect_code', 'map_defect_code')
+
+
+    conditions = [
+        When(defect_code_description=mapping['excel_defect_code'], then=Value(mapping['map_defect_code']))
+        for mapping in size_mapping
+    ]
+
+    if conditions:
+        CustomerTicket.objects.update(
+            map_defect_code=Case(
+                *conditions,
+                default=Value(None),
+            )
+        )
+
     return JsonResponse({"message": "done"})
+    
 
 
 ########## Ticket create for Yokohama #############
@@ -556,11 +620,12 @@ class AddTicket(APIView):
 """For add ticket in zendesk"""
 def ticket_add_api(ticket_data):
     url = "https://yokohama-atg.zendesk.com/api/v2/imports/tickets/create_many"
-    username = "sreevidya@godigitalcx.com"
+    username = "support@godigitalcx.com"
     password = "4WKO4l4mWhhlSvLkGByJyJ1zu0fmLlnn6Gm3q6gZ"
     auth_string = f"{username}/token:{password}"
     encoded_auth = base64.b64encode(auth_string.encode()).decode('utf-8')
     payload = json.dumps({"tickets": ticket_data})
+    # print("payloadddddd",payload)
     headers = {
         "Content-Type": "application/json",
         'Authorization': f'Basic {encoded_auth}'
@@ -571,7 +636,7 @@ def ticket_add_api(ticket_data):
     return response
 
 """For get records in database"""
-def process_database_records_in_chunks(chunk_size=2):
+def process_database_records_in_chunks(chunk_size=100):
     total_records = CustomerTicket.objects.count()
     for start_idx in range(0, total_records, chunk_size):
         end_idx = min(start_idx + chunk_size, total_records)
@@ -589,7 +654,7 @@ def process_database_records_in_chunks(chunk_size=2):
                     "status": 'closed',
                     "subject":str(record.date),
                     "tags": str(record.claim_no),
-                    "requester_id": str(record.requester_id),
+                    # "requester_id": str(record.requester_id),
                     "custom_fields": [
                         {"id": 21115540894737, "value": record.cat_no},
                         {"id": 17459369077521, "value": record.defect_code_description},
@@ -615,7 +680,8 @@ def process_database_records_in_chunks(chunk_size=2):
 
                     ]
                 }
-            
+            if record.requester_id is not None:
+                ticket_data["requester_id"] = str(record.requester_id)
             # Filter out dictionaries with value "nan" from custom_fields
             ticket_data["custom_fields"] = [
                 field for field in ticket_data["custom_fields"] if field.get("value") != "nan"
@@ -647,7 +713,7 @@ def process_database_records_in_chunks(chunk_size=2):
 ######### For save ticket ids and claim ids in excel sheet ##############
 def ShowYokoTicket(request):
     url = "https://yokohama-atg.zendesk.com/api/v2/tickets"
-    username = "sreevidya@godigitalcx.com"
+    username = "support@godigitalcx.com"
     password = "4WKO4l4mWhhlSvLkGByJyJ1zu0fmLlnn6Gm3q6gZ"
     auth_string = f"{username}/token:{password}"
     encoded_auth = base64.b64encode(auth_string.encode()).decode('utf-8')
@@ -673,16 +739,76 @@ def ShowYokoTicket(request):
                 da = legacy_item[0]
                 ticket_id = ticket['id']
                 ticket_ids.append(ticket_id)
-
                 claim.append(da)
                 # Save ticket_id and claim to the database
                 # Ticket_ids.objects.create(ticket_ids=ticket_id, claims=da)
             else:
                 print("No item with 'legacy_' found.")
-      
-    return JsonResponse({"msg":"done"})
+    
+    # Create a CSV file with ticket_ids and claim columns
+    with open('tickets.csv', 'w', newline='') as csvfile:
+        fieldnames = ['ticket_ids', 'claim']
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        
+        writer.writeheader()
+        for t_id, cl in zip(ticket_ids, claim):
+            writer.writerow({'ticket_ids': t_id, 'claim': cl})
 
+    return JsonResponse({"msg": "done"})
 
+# def ShowYokoTicket(request):
+#     url = "https://yokohama-atg.zendesk.com/api/v2/tickets"
+#     username = "support@godigitalcx.com"
+#     password = "4WKO4l4mWhhlSvLkGByJyJ1zu0fmLlnn6Gm3q6gZ"
+#     auth_string = f"{username}/token:{password}"
+#     encoded_auth = base64.b64encode(auth_string.encode()).decode('utf-8')
+#     headers = {
+#         "Content-Type": "application/json",
+#         'Authorization': f'Basic {encoded_auth}'
+#     }
+#     all_tickets = []
+#     ticket_ids = []
+#     claim = []
+
+#     while url:
+#         response = requests.get(url, headers=headers)
+#         data = response.json()
+#         all_tickets.extend(data['tickets'])
+#         url = data.get('next_page')
+        
+#         for ticket in data['tickets']:
+#             ticket_id = ticket['id']
+#             tags = ticket['tags']
+#             legacy_item = [item for item in tags if item.startswith("legacy_")]
+#             if legacy_item:
+#                 da = legacy_item[0]
+#                 ticket_id = ticket['id']
+#                 ticket_ids.append(ticket_id)
+#                 claim.append(da)
+#                 # Save ticket_id and claim to the database
+#                 # Ticket_ids.objects.create(ticket_ids=ticket_id, claims=da)
+#             else:
+#                 print("No item with 'legacy_' found.")
+    
+#     # Create a CSV file with ticket_ids and claim columns
+#     with open('tickets.csv', 'w', newline='') as csvfile:
+#         fieldnames = ['ticket_ids', 'claim']
+#         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        
+#         writer.writeheader()
+#         for t_id, cl in zip(ticket_ids, claim):
+#             writer.writerow({'ticket_ids': t_id, 'claim': cl})
+
+#     # Delete all collected tickets
+#     for t_id in ticket_ids:
+#         delete_url = f"https://yokohama-atg.zendesk.com/api/v2/tickets/{t_id}"
+#         response = requests.delete(delete_url, headers=headers)
+#         if response.status_code == 204:
+#             print(f"Ticket {t_id} deleted successfully.")
+#         else:
+#             print(f"Failed to delete ticket {t_id}. Status code: {response.status_code}")
+
+#     return JsonResponse({"msg": "done"})
 
 def fake_user(request):
     try:
